@@ -83,11 +83,15 @@ def home():
     return ""
 
 @app.route('/subsc/<id>')
+def info(id):
+    return render_template_string("<html><body><h1>/subsc/[id]</h1></body></html>")
+
+@app.route('/subsc/<id>')
 def subscribe(id):
     global inpJson
 
     routine(id)
-    result = f"{inpJson["output_route"]}{id}"
+    result = f"{inpJson['output_route']}{id}.mp4"
     return render_template_string("<html><body><h1>{{ result }}</h1></body></html>", result=result)
 
 if __name__ == '__main__':
