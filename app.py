@@ -83,7 +83,7 @@ def home():
     return ""
 
 @app.route('/subsc/')
-def info(id):
+def info():
     return render_template_string("<html><body><h1>/subsc/[id]</h1></body></html>")
 
 @app.route('/subsc/<id>')
