@@ -82,7 +82,7 @@ app = Flask(__name__)
 def home():
     return ""
 
-@app.route('/subsc/<id>')
+@app.route('/subsc/')
 def info(id):
     return render_template_string("<html><body><h1>/subsc/[id]</h1></body></html>")
 
