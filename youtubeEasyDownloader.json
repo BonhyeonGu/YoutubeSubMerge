@@ -1,12 +1,13 @@
 {
-    "output_route" : "https://a.b.c/d/",
+    "output_route" : "https://aaaa/subsc/",
     "fontname" : "NanumGothic",
+    "deepl_auth_key" : "1234asf",
 
     "sftp" : {
         "host" : "1.2.3.4",
         "port" : 1111,
-        "id" : "aaaa",
-        "pw" : "1234",
-        "locale" : "/usr/share/nginx/html/"
+        "id" : "11a",
+        "pw" : "aaa",
+        "locale" : "/usr/share/nginx/html/subsc/"
     }
 }
