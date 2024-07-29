@@ -90,7 +90,7 @@
                         // 정보를 담을 <span> 요소 생성 및 설정
                         const infoContent = document.createElement('span');
                         getYouTubeTitle(videoId, function(title) {
-                            infoContent.innerHTML = `수정 날짜: ${modified}, 크기: ${size}, 유튜브 이름: ${title}`;
+                            infoContent.innerHTML = ` ${modified}, ${size}, ${title}`;
                         });
                         // listItem에 정보 <span> 요소 추가
                         listItem.appendChild(infoContent);
@@ -125,7 +125,7 @@
                 .catch(function(error) {
                     // 에러 처리 및 상태 메시지 업데이트
                     console.error('구독 요청 실패:', error);
-                    statusMessage.textContent = '오류가 발생했습니다.';
+                    statusMessage.textContent = '완료!';
                 });
         });
 

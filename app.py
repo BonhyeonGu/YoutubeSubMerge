@@ -2,7 +2,7 @@ import os
 import datetime
 import json
 from flask import Flask, render_template_string, redirect, render_template, request, jsonify
-from pytube import YouTube
+from pytubefix import YouTube
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 import deepl
 import pysftp
@@ -17,7 +17,7 @@ def jsonTrans(srt_json):
 def json2srt(data):
     srt_content = ""
     for index, entry in enumerate(data):
-        # 자막 번호 추가[]
+        # 자막 번호 추가
         srt_content += f"{index + 1}\n"
 
         # 시작 시간과 종료 시간 계산
@@ -40,26 +40,34 @@ def json2srt(data):
 
 def mergeSource(vName, aName, srtName, outName):
     global inpJson
-    #cmd = f'ffmpeg -i {vName} -i {aName} -i {srtName} -c:v copy -c:a aac -strict experimental -c:s mov_text -map 0:v -map 1:a -map 2:s {outName}' #내장식
-    #cmd = f'ffmpeg -loglevel fatal -y -i {vName} -i {aName} -vf "subtitles={srtName}:fontsdir=/root/p:force_style=\'Fontname={inpJson["fontname"]}\'" -c:a aac -strict experimental {outName}'
+    # cmd = f'ffmpeg -i {vName} -i {aName} -i {srtName} -c:v copy -c:a aac -strict experimental -c:s mov_text -map 0:v -map 1:a -map 2:s {outName}' #내장식
+    # cmd = f'ffmpeg -loglevel fatal -y -i {vName} -i {aName} -vf "subtitles={srtName}:fontsdir=/root/p:force_style=\'Fontname={inpJson["fontname"]}\'" -c:a aac -strict experimental {outName}'
     cmd = f"ffmpeg -loglevel fatal -y -i {vName} -i {aName} -vf \"subtitles={srtName}:fontsdir=/root/p:force_style='Fontname={inpJson['fontname']},Alignment=2,MarginV=30'\" -c:a aac -strict experimental {outName}"
 
     os.system(cmd)
     return
 
+def sanitize_filename(name, max_length=255):
+    #파일 이름 자르기
+    return name[:max_length].rsplit(' ', 0)[0]
+
 def routine(video_id: str, la: str):
     global inpJson
 
-    vName = f'{video_id}_Video'
-    aName = f'{video_id}_Audio'
+    vName = f'{video_id}_Video.mp4'
+    aName = f'{video_id}_Audio.mp4'
     srtName = f'{video_id}.srt'
     outName = f'{video_id}.mp4'
     
     video_url = f'https://www.youtube.com/watch?v={video_id}'
     yt = YouTube(video_url)
-    dName = yt.streams.filter(adaptive=True, file_extension='mp4').first().download()
+    vName = sanitize_filename(vName)
+    aName = sanitize_filename(aName)
+    outName = sanitize_filename(outName)
+    
+    dName = yt.streams.filter(adaptive=True, file_extension='mp4').first().download(filename=vName)
     os.rename(dName, vName)
-    dName = yt.streams.filter(only_audio=True).first().download()
+    dName = yt.streams.filter(only_audio=True).first().download(filename=aName)
     os.rename(dName, aName)
     try:
         srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
@@ -155,4 +163,3 @@ if __name__ == '__main__':
     with open('./youtubeEasyDownloader.json', 'r') as f:
         inpJson = json.load(f)
     app.run(host='0.0.0.0', port=5000)
-    
