@@ -8,7 +8,6 @@ import deepl
 import pysftp
 
 def jsonTrans(srt_json):
-    global inpJson
     translator = deepl.Translator(inpJson["deepl_auth_key"])
     for i in srt_json:
         i["text"] = translator.translate_text(i["text"], target_lang="KO")
@@ -47,13 +46,19 @@ def mergeSource(vName, aName, srtName, outName):
     os.system(cmd)
     return
 
+def mergeSourceNotAudio(vName, srtName, outName):
+    global inpJson
+    # ffmpeg 명령어 수정: 오디오 파일을 제외하고 비디오와 자막만 병합
+    cmd = f"ffmpeg -loglevel fatal -y -i {vName} -vf \"subtitles={srtName}:fontsdir=/root/p:force_style='Fontname={inpJson['fontname']},Alignment=2,MarginV=30'\" -c:a copy {outName}"
+
+    os.system(cmd)
+    return
+
 def sanitize_filename(name, max_length=255):
     #파일 이름 자르기
     return name[:max_length].rsplit(' ', 0)[0]
 
 def routine(video_id: str, la: str):
-    global inpJson
-
     vName = f'{video_id}_Video.mp4'
     aName = f'{video_id}_Audio.mp4'
     srtName = f'{video_id}.srt'
@@ -111,6 +116,55 @@ def routine(video_id: str, la: str):
     os.remove(outName)
     return True
 
+
+def routineForUpload(video_id: str, la: str):
+    vName = f'{video_id}.mp4'
+    srtName = f'{video_id}.srt'
+    outName = f'{video_id}.mp4'
+    
+    vName = sanitize_filename(vName)
+    outName = sanitize_filename(outName)
+ 
+    try:
+        srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
+        if la != 'ko':
+            jsonTrans(srt_json)
+    except:
+        try:
+            srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
+        except NoTranscriptFound as e:
+            try:
+                srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['en'])
+                jsonTrans(srt_json)
+            except NoTranscriptFound as e:
+                try: 
+                    srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ja'])
+                    jsonTrans(srt_json)
+                except:
+                    return False
+
+    srt = json2srt(srt_json)
+    with open(srtName, 'w', encoding='utf-8') as f:
+        f.write(str(srt))
+    #배열에 text
+    mergeSourceNotAudio(vName, srtName, outName)
+    os.remove(vName)
+    os.remove(srtName)  
+
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+
+    host = inpJson["sftp"]["host"]
+    port = inpJson["sftp"]["port"]
+    id = inpJson["sftp"]["id"]
+    pw = inpJson["sftp"]["pw"]
+    sftpOutLocale = inpJson["sftp"]["locale"]
+    with pysftp.Connection(host, port=port, username=id, password=pw, cnopts=cnopts) as sftp:
+        sftp.put(f"./{outName}", f"{sftpOutLocale}{outName}")
+    os.remove(outName)
+    return True
+
+
 def getRemoteList():
     global inpJson
     ret = list()
@@ -148,6 +202,24 @@ def subscribe(id, la):
         return jsonify({"success": True, "message": "Subscription successful"}), 200
     else:
         return jsonify({"success": False, "message": "Subscription failed"}), 500
+
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    video_id = request.form.get('videoId')
+    language = request.form.get('language')
+
+    if not video_id or not language:
+        return jsonify({"error": "필수 정보가 누락되었습니다."}), 400
+
+    if 'file' not in request.files:
+        return jsonify({"error": "파일이 없습니다."}), 400
+    
+    file = request.files['file']
+    file.save(video_id + '.mp4')
+    if(routineForUpload(video_id, language)):
+        return jsonify({"message": "파일 처리 성공", "videoId": video_id, "language": language}), 200
+    else:
+        return jsonify({"error": "파일 처리 실패", "videoId": video_id, "language": language}), 400
 
 @app.route('/getremotelist', methods=['GET'])
 def list_files():
