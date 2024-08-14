@@ -7,13 +7,15 @@
 <body>
     <button id="refresh-list">목록 새로고침</button>
     <div>
+        <input type="file" id="fileInput">
         <input type="text" id="video-id" placeholder="Video ID">
         <select id="language">
             <option value="ko">Korean</option>
             <option value="en">English</option>
             <option value="ja">Japanese</option>
         </select>
-        <button id="subscribe-btn">변환</button>
+        <button id="start-btn">실행</button>
+        <div id="uploadStatus"></div>
     </div>
     <br/>
     <div id="status-message"></div>
@@ -117,27 +119,35 @@
         }
 
         document.getElementById('refresh-list').addEventListener('click', fetchAndDisplayList);
-        document.getElementById('subscribe-btn').addEventListener('click', function() {
+        document.getElementById('start-btn').addEventListener('click', function() {
+            const fileInput = document.getElementById('fileInput');
             const videoId = document.getElementById('video-id').value;
             const language = document.getElementById('language').value;
-            const statusMessage = document.getElementById('status-message');
-            if (!videoId) {
-                alert('Video ID를 입력하세요.');
+            const file = fileInput.files[0]; // 첫 번째 파일만 선택
+
+            if (!file || videoId === '' || language === '') {
+                alert('모든 필드를 채워주세요.');
                 return;
             }
-            // "진행 중" 상태 메시지 표시
-            statusMessage.textContent = '진행 중...';
-            axios.get(`/subsc/${videoId}/${language}`)
-                .then(function(response) {
-                    // 성공적인 요청 처리 및 "완료" 상태 메시지 표시
-                    statusMessage.textContent = '완료!';
-                    fetchAndDisplayList();
-                })
-                .catch(function(error) {
-                    // 에러 처리 및 상태 메시지 업데이트
-                    console.error('구독 요청 실패:', error);
-                    statusMessage.textContent = '완료!';
-                });
+
+            const formData = new FormData();
+            formData.append('videoId', videoId);
+            formData.append('language', language);
+            formData.append('file', file); // 단일 파일 추가
+
+            axios.post('/upload', formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+            .then(response => {
+                console.log('서버 응답:', response.data);
+                document.getElementById('uploadStatus').textContent = '업로드 성공!';
+            })
+            .catch(error => {
+                console.error('업로드 실패:', error);
+                document.getElementById('uploadStatus').textContent = '업로드 실패!';
+            });
         });
 
         // Initial fetch of the list

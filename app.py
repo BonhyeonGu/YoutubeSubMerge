@@ -186,16 +186,30 @@ def getRemoteList():
 
     return ret
 
+def getVID(url):
+    # youtu.be 형식의 짧은 URL 처리
+    if 'youtu.be/' in url:
+        return url.split('youtu.be/')[1].split('?')[0]
+    
+    # youtube.com 형식의 URL 처리
+    if 'youtube.com/watch' in url:
+        # 쿼리 문자열에서 'v' 파라미터 추출
+        query_part = url.split('youtube.com/watch?')[1]
+        query_params = query_part.split('&')
+        for param in query_params:
+            if param.startswith('v='):
+                return param.split('v=')[1]
+    return url
+
 app = Flask(__name__)
 
-@app.route('/subsc/')
-def info():
-    return render_template_string("<html><body><h1>/subsc/[id]</h1></body></html>")
-
-@app.route('/subsc/<id>/<la>')
-def subscribe(id, la):
-    global inpJson
-
+@app.route('/subsc/', methods=['POST'])
+def subscribe():
+    data = request.get_json()
+    id = getVID(data.get('url'))
+    la = data.get('language')
+    t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{t} ---- {id} - {la}")
     success = routine(id, la)
     # 성공 여부에 따른 응답 반환
     if success:
