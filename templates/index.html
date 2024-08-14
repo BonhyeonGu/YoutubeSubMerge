@@ -75,27 +75,38 @@
                         listItem.style.alignItems = 'center'; // 중앙 정렬
                         listItem.style.gap = '10px'; // 버튼과 정보 사이의 간격 설정
 
-                        // 복사 버튼 생성 및 설정
                         const copyButton = document.createElement('button');
-                        copyButton.textContent = 'URL 복사';
+                        copyButton.textContent = '복사';
                         copyButton.addEventListener('click', function() {
                             navigator.clipboard.writeText(`https://vrcimg.9bon.org/subsc/${videoId}.mp4`)
-                                .then(() => console.log('URL이 클립보드에 복사되었습니다.'))
-                                .catch(err => console.error('클립보드 복사 실패:', err));
+                                .then(() => console.log('URL 복사됨'))
+                                .catch(error => console.error('클립보드 복사 실패:', error));
                         });
+                        const delButton = document.createElement('button');
+                        delButton.textContent = '삭제';
+                        delButton.addEventListener('click', function() {
+                            axios.post('/deleteremote', { videoId: videoId })
+                                .then(response => {
+                                    console.log('서버 응답:', response.data);
+                                    fetchAndDisplayList();
+                                })
+                                .catch(error => console.error('요청 실패:', error));
+                        });
+
                         
                         // listItem에 복사 버튼 추가
-                        listItem.appendChild(copyButton);
-
-                        // 정보를 담을 <span> 요소 생성 및 설정
                         const infoContent = document.createElement('span');
                         getYouTubeTitle(videoId, function(title) {
+                            const maxLength = 40;
+                            if (title.length > maxLength) {
+                                title = title.substring(0, maxLength) + '...';
+                            }
                             infoContent.innerHTML = ` ${modified}, ${size}, ${title}`;
                         });
-                        // listItem에 정보 <span> 요소 추가
-                        listItem.appendChild(infoContent);
                         
-                        // 최종적으로 listElement에 listItem 추가
+                        listItem.appendChild(copyButton);
+                        listItem.appendChild(delButton);
+                        listItem.appendChild(infoContent);
                         listElement.appendChild(listItem);
                     });
                 })

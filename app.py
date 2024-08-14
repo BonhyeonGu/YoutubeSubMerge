@@ -154,6 +154,42 @@ def list_files():
     file_list = getRemoteList()
     return jsonify(file_list)
 
+@app.route('/deleteremote', methods=['POST'])
+def delete_file():
+    data = request.get_json()
+
+    if data:
+        video_id = data.get('videoId')
+        if not video_id:
+            return jsonify({"error": "videoId가 전달되지 않았습니다."}), 400
+
+        cnopts = pysftp.CnOpts()
+        cnopts.hostkeys = None
+
+        host = inpJson["sftp"]["host"]
+        port = inpJson["sftp"]["port"]
+        id = inpJson["sftp"]["id"]
+        pw = inpJson["sftp"]["pw"]
+        sftpOutLocale = inpJson["sftp"]["locale"]
+
+        fileLocale = os.path.join(sftpOutLocale, video_id + '.mp4')
+        
+        try:
+            with pysftp.Connection(host, port=port, username=id, password=pw, cnopts=cnopts) as sftp:
+                try:
+                    # 파일이 존재하는지 시도해봄
+                    sftp.stat(fileLocale)
+                    sftp.remove(fileLocale)
+                    return jsonify({"message": "삭제 성공"}), 200
+                except FileNotFoundError:
+                    # 파일이 존재하지 않음
+                    return jsonify({"error": "파일 찾지 못함"}), 400
+        except Exception as e:
+            # 그 외 예외 처리
+            return jsonify({"error": "서버 오류 발생", "details": str(e)}), 500
+    else:
+        return jsonify({"error": "변수 전달 받지 못함"}), 400
+
 @app.route('/')
 def home():
     return render_template('index.html')
