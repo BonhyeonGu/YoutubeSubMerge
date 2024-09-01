@@ -9,8 +9,16 @@ import pysftp
 
 def jsonTrans(srt_json):
     translator = deepl.Translator(inpJson["deepl_auth_key"])
+    sw = False
+    print("Deepl start")
     for i in srt_json:
+        if not sw:
+            print(i["text"])
         i["text"] = translator.translate_text(i["text"], target_lang="KO")
+        if not sw:
+            print(i["text"])
+            sw = True
+    print("Deepl End")
     return
 
 def json2srt(data):
@@ -74,11 +82,14 @@ def routine(video_id: str, la: str):
     os.rename(dName, vName)
     dName = yt.streams.filter(only_audio=True).first().download(filename=aName)
     os.rename(dName, aName)
+    print(f"Download End")
     try:
+        print(f"Try : {video_id} --- {la}")
         srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
         if la != 'ko':
             jsonTrans(srt_json)
-    except:
+    except Exception as e:
+        print(f"Except! : {e}")
         try:
             srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
         except NoTranscriptFound as e:
@@ -98,7 +109,9 @@ def routine(video_id: str, la: str):
     with open(srtName, 'w', encoding='utf-8') as f:
         f.write(str(srt))
     #배열에 text
+    print(f"FFMPEG Start")
     mergeSource(vName, aName, srtName, outName)
+    print(f"FFMPEG End")
     os.remove(vName)
     os.remove(aName)
     os.remove(srtName)  
@@ -203,13 +216,13 @@ def getVID(url):
 
 app = Flask(__name__)
 
-@app.route('/subsc/', methods=['POST'])
+@app.route('/subsc', methods=['POST'])
 def subscribe():
     data = request.get_json()
     id = getVID(data.get('url'))
     la = data.get('language')
     t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{t} ---- {id} - {la}")
+    print(f"Input : {t} ---- {id} - {la}")
     success = routine(id, la)
     # 성공 여부에 따른 응답 반환
     if success:

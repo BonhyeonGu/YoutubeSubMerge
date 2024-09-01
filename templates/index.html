@@ -12,6 +12,7 @@
             <option value="ko">Korean</option>
             <option value="en">English</option>
             <option value="ja">Japanese</option>
+            <option value="zh">Chinese</option>
         </select>
         <button id="subscribe-btn">변환</button>
     </div>
@@ -127,7 +128,7 @@
             }
             // "진행 중" 상태 메시지 표시
             statusMessage.textContent = '진행 중...';
-            axios.post('/subsc/', {
+            axios.post('/subsc', {
                 url: videoId,
                 language: language
             }, {timeout: 1800000})
