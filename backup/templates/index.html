@@ -5,11 +5,8 @@
     <title>YoutubeSubsc</title>
 </head>
 <body>
-    <h1>Youtube Downloader</h1>
     <button id="refresh-list">목록 새로고침</button>
-
     <div>
-        <input type="text" id="video-url" placeholder="Video Download URL" style="width: 300px;">
         <input type="text" id="video-id" placeholder="Video ID">
         <select id="language">
             <option value="ko">Korean</option>
@@ -19,7 +16,6 @@
         </select>
         <button id="subscribe-btn">변환</button>
     </div>
-
     <br/>
     <div id="status-message"></div>
     <div id="files-list"></div>
@@ -34,7 +30,7 @@
             const i = Math.floor(Math.log(bytes) / Math.log(k));
             return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
-
+    
         function formatDate(timestamp) {
             const date = new Date(timestamp * 1000);
             const year = date.getFullYear();
@@ -44,6 +40,18 @@
             const minutes = ('0' + date.getMinutes()).slice(-2);
             const seconds = ('0' + date.getSeconds()).slice(-2);
             return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        function getYouTubeTitle(videoId, callback) {
+            const url = `https://www.youtube.com/watch?v=${videoId}`;
+            axios.get('https://noembed.com/embed', { params: { format: 'json', url: url } })
+                .then(function(response) {
+                    callback(response.data.title);
+                })
+                .catch(function(error) {
+                    console.error('Error fetching YouTube title:', error);
+                    callback('Unknown Title');
+                });
         }
 
         function fetchAndDisplayList() {
@@ -61,11 +69,12 @@
                         const videoId = parts[0].split(': ')[1].replace('.mp4', '');
                         const size = formatBytes(parseInt(parts[1].split(': ')[1]));
                         const modified = formatDate(parseInt(parts[2].split(': ')[1]));
-
+                        
+                        // listItem 요소 생성
                         const listItem = document.createElement('div');
-                        listItem.style.display = 'flex';
-                        listItem.style.alignItems = 'center';
-                        listItem.style.gap = '10px';
+                        listItem.style.display = 'flex'; // flexbox를 사용하여 요소들을 한 줄에 나열
+                        listItem.style.alignItems = 'center'; // 중앙 정렬
+                        listItem.style.gap = '10px'; // 버튼과 정보 사이의 간격 설정
 
                         const copyButton = document.createElement('button');
                         copyButton.textContent = '복사';
@@ -74,7 +83,6 @@
                                 .then(() => console.log('URL 복사됨'))
                                 .catch(error => console.error('클립보드 복사 실패:', error));
                         });
-
                         const delButton = document.createElement('button');
                         delButton.textContent = '삭제';
                         delButton.addEventListener('click', function() {
@@ -86,9 +94,17 @@
                                 .catch(error => console.error('요청 실패:', error));
                         });
 
+                        
+                        // listItem에 복사 버튼 추가
                         const infoContent = document.createElement('span');
-                        infoContent.innerHTML = ` ${modified}, ${size}, ID: ${videoId}`;
-
+                        getYouTubeTitle(videoId, function(title) {
+                            const maxLength = 40;
+                            if (title.length > maxLength) {
+                                title = title.substring(0, maxLength) + '...';
+                            }
+                            infoContent.innerHTML = ` ${modified}, ${size}, ${title}`;
+                        });
+                        
                         listItem.appendChild(copyButton);
                         listItem.appendChild(delButton);
                         listItem.appendChild(infoContent);
@@ -103,34 +119,35 @@
 
         document.getElementById('refresh-list').addEventListener('click', fetchAndDisplayList);
         document.getElementById('subscribe-btn').addEventListener('click', function() {
-            const videoUrl = document.getElementById('video-url').value;
             const videoId = document.getElementById('video-id').value;
             const language = document.getElementById('language').value;
             const statusMessage = document.getElementById('status-message');
-
-            if (!videoUrl || !videoId) {
-                alert('Video URL과 Video ID를 모두 입력하세요.');
+            if (!videoId) {
+                alert('Video ID를 입력하세요.');
                 return;
             }
-
+            // "진행 중" 상태 메시지 표시
             statusMessage.textContent = '진행 중...';
             axios.post('/subsc', {
-                url: videoUrl,
-                id: videoId,
+                url: videoId,
                 language: language
             }, {timeout: 1800000})
             .then(function(response) {
+                // 성공적인 요청 처리 및 "완료" 상태 메시지 표시
                 statusMessage.textContent = '완료!';
                 fetchAndDisplayList();
             })
             .catch(function(error) {
+                // 에러 처리 및 상태 메시지 업데이트
                 console.error('구독 요청 실패:', error);
-                statusMessage.textContent = '오류가 발생했습니다.';
+                statusMessage.textContent = '완료!';
             });
         });
 
-        // 초기 목록 불러오기
+        // Initial fetch of the list
         fetchAndDisplayList();
+        
+    
     </script>
 </body>
 </html>
