@@ -2,7 +2,7 @@
 <html lang="kr">
 <head>
     <meta charset="UTF-8">
-    <title>Subsc</title>
+    <title>Youtube Downloader</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -35,6 +35,13 @@
             font-size: 16px;
         }
 
+        .status-message {
+            text-align: center;
+            font-weight: bold;
+            margin: 10px 0;
+            color: #555;
+        }
+
         .control-panel {
             display: flex;
             gap: 10px;
@@ -63,13 +70,6 @@
             background-color: #45a049;
         }
 
-        .video-preview img {
-            width: 100px;
-            height: 75px;
-            border-radius: 5px;
-            margin-right: 10px;
-        }
-
         .file-item {
             display: flex;
             align-items: center;
@@ -85,18 +85,42 @@
         }
 
         .file-details {
+            display: flex;
             flex-grow: 1;
+            flex-direction: column;
             margin-left: 10px;
+            min-width: 0;
+        }
+
+        .file-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+            flex: 1 1 auto;
+            font-weight: bold;
         }
 
         .file-actions button {
             margin-left: 10px;
         }
+
+        .status-message.loading {
+            color: #555;
+        }
+
+        .status-message.success {
+            color: green;
+        }
+
+        .status-message.error {
+            color: red;
+        }
     </style>
 </head>
 <body>
 
-    <h1>Subsc</h1>
+    <h1>Youtube Downloader</h1>
 
     <div class="container">
         <div class="total-storage" id="total-storage">총 소비 용량: 계산 중...</div>
@@ -113,52 +137,35 @@
             <button id="subscribe-btn">변환</button>
         </div>
 
-        <div id="video-preview" class="video-preview" style="display: none;">
-            <img id="video-thumbnail" src="" alt="썸네일">
-            <p id="video-title"></p>
-        </div>
+        <div class="status-message" id="status-message"></div>
 
         <button id="refresh-list" style="margin-bottom: 20px;">목록 새로고침</button>
 
-        <div id="status-message"></div>
         <div id="files-list"></div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <script>
-        function formatBytes(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        function setStatusMessage(message, type = 'loading') {
+            const statusMessage = document.getElementById('status-message');
+            statusMessage.textContent = message;
+            statusMessage.className = `status-message ${type}`;
         }
 
-        function formatGigabytes(bytes) {
-            const gb = bytes / (1024 ** 3);
-            return `${gb.toFixed(2)} GB`;
-        }
-
-        function shortenText(text, maxLength = 30) {
+        function shortenText(text, maxLength = 20) {
             return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
         }
 
         async function fetchAndDisplayList() {
+            setStatusMessage('🔄 목록을 불러오는 중...');
             const response = await axios.get('/getremotelist');
             const filesList = document.getElementById('files-list');
             filesList.innerHTML = '';
             let totalSize = 0;
 
-            const sortedFiles = response.data.sort((a, b) => {
-                const aDate = parseInt(a.split(', ')[2].split(': ')[1]);
-                const bDate = parseInt(b.split(', ')[2].split(': ')[1]);
-                return bDate - aDate; // 최신순으로 정렬
-            });
-
-            const filePromises = sortedFiles.map(async file => {
+            const filePromises = response.data.map(async file => {
                 const parts = file.split(', ');
-                const videoId = parts[0].split(': ')[1].replace('.mp4', '');
+                const videoId = parts[0].split(': ')[1].replace('.mp4', '').trim();
                 const size = parseInt(parts[1].split(': ')[1]);
                 totalSize += size;
 
@@ -167,7 +174,7 @@
 
                 try {
                     const videoResponse = await axios.get('https://noembed.com/embed', { params: { url: `https://www.youtube.com/watch?v=${videoId}` } });
-                    title = shortenText(videoResponse.data.title);
+                    title = shortenText(videoResponse.data.title, 20);
                     thumbnailUrl = videoResponse.data.thumbnail_url;
                 } catch (error) {
                     console.warn('Could not fetch video info for:', videoId);
@@ -177,7 +184,9 @@
                 item.className = 'file-item';
                 item.innerHTML = `
                     <img src="${thumbnailUrl}">
-                    <div class="file-details">${title} - ${formatBytes(size)}</div>
+                    <div class="file-details">
+                        <div class="file-title">${title}</div>
+                    </div>
                     <div class="file-actions">
                         <button onclick="navigator.clipboard.writeText('https://vrcimg.9bon.org/subsc/${videoId}.mp4')">복사</button>
                         <button onclick="confirmDelete('${videoId}')">삭제</button>
@@ -189,20 +198,23 @@
 
             const items = await Promise.all(filePromises);
             items.forEach(item => filesList.appendChild(item));
-            document.getElementById('total-storage').textContent = `총 소비 용량: ${formatGigabytes(totalSize)}`;
+            document.getElementById('total-storage').textContent = `총 소비 용량: ${(totalSize / (1024 ** 3)).toFixed(2)} GB`;
+            setStatusMessage('');
         }
 
         function confirmDelete(videoId) {
             if (confirm(`${videoId}을(를) 삭제하시겠습니까?`)) {
+                setStatusMessage('🔄 파일을 삭제하는 중...', 'loading');
                 axios.post('/deleteremote', { videoId }).then(() => fetchAndDisplayList());
             }
         }
 
         document.getElementById('refresh-list').addEventListener('click', fetchAndDisplayList);
-        document.getElementById('subscribe-btn').addEventListener('click', () => {
-            const videoUrl = document.getElementById('video-url').value;
-            const videoId = document.getElementById('video-id').value;
-            axios.post('/subsc', { url: videoUrl, id: videoId, language: 'ko' }).then(() => fetchAndDisplayList());
+        document.getElementById('subscribe-btn').addEventListener('click', async () => {
+            setStatusMessage('🔄 진행 중...');
+            await axios.post('/subsc');
+            setStatusMessage('✅ 완료!', 'success');
+            fetchAndDisplayList();
         });
 
         fetchAndDisplayList();
