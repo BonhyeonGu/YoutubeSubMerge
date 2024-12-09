@@ -6,18 +6,12 @@ from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 import deepl
 import pysftp
 
+app = Flask(__name__)
+
 def jsonTrans(srt_json):
     translator = deepl.Translator(inpJson["deepl_auth_key"])
-    sw = False
-    print("Deepl start")
     for i in srt_json:
-        if not sw:
-            print(i["text"])
         i["text"] = translator.translate_text(i["text"], target_lang="KO")
-        if not sw:
-            print(i["text"])
-            sw = True
-    print("Deepl End")
     return
 
 def json2srt(data):
@@ -60,11 +54,17 @@ def routine(video_url: str, video_id: str, la: str):
     
     try:
         print(f"Try : {video_id} --- {la}")
-        srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
-        if la != 'ko':
+        if la == 'zh': 
+            srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['zh-Hans', 'zh-Hant'])
+        else:
+            srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
+        
+        if la != 'ko':  
             jsonTrans(srt_json)
+
     except Exception as e:
         print(f"Except! : {e}")
+        
         try:
             srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
         except NoTranscriptFound as e:
@@ -96,12 +96,15 @@ def routine(video_url: str, video_id: str, la: str):
     id = inpJson["sftp"]["id"]
     pw = inpJson["sftp"]["pw"]
     sftpOutLocale = inpJson["sftp"]["locale"]
+
+    sftp_target_name = f"{video_id}.mp4"
+
     with pysftp.Connection(host, port=port, username=id, password=pw, cnopts=cnopts) as sftp:
-        sftp.put(f"./{outName}", f"{sftpOutLocale}{outName}")
+        sftp.put(f"./{outName}", f"{sftpOutLocale}{sftp_target_name}")
+        print(f"Uploaded {outName} as {sftp_target_name} to SFTP")
+    
     os.remove(outName)
     return True
-
-app = Flask(__name__)
 
 @app.route('/subsc', methods=['POST'])
 def subscribe():
@@ -109,8 +112,7 @@ def subscribe():
     video_url = data.get('url')
     video_id = data.get('id')
     la = data.get('language')
-    t = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"Input : {t} ---- {video_url} - {video_id} - {la}")
+    print(f"Input : {video_url} --- {video_id} - {la}")
     success = routine(video_url, video_id, la)
     if success:
         return jsonify({"success": True, "message": "Subscription successful"}), 200
@@ -147,6 +149,7 @@ def delete_file():
 
         cnopts = pysftp.CnOpts()
         cnopts.hostkeys = None
+
         host = inpJson["sftp"]["host"]
         port = inpJson["sftp"]["port"]
         id = inpJson["sftp"]["id"]
