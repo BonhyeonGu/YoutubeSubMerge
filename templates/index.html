@@ -2,10 +2,97 @@
 <html lang="kr">
 <head>
 <meta charset="UTF-8">
-<title>Subsc</title>
-<style>
-/* 기존 스타일 유지 */
-</style>
+    <title>Subsc</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px 0;
+            color: #444;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .total-storage {
+            text-align: right;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .control-panel {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        input[type="text"], select {
+            padding: 10px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .video-preview img {
+            width: 100px;
+            height: 75px;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .file-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 5px;
+        }
+
+        .file-details {
+            flex-grow: 1;
+            margin-left: 10px;
+        }
+
+        .file-actions button {
+            margin-left: 10px;
+        }
+    </style>
 </head>
 <body>
 
