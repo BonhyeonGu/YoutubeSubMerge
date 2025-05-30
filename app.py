@@ -7,6 +7,8 @@ import deepl
 import pysftp
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024
+
 
 def jsonTrans(srt_json):
     translator = deepl.Translator(inpJson["deepl_auth_key"])
