@@ -201,45 +201,34 @@ def routine_for_upload(vName: str, video_id: str, la: str):
 
     print(f"[UPLOAD] Processing uploaded video: {vName}")
 
-    # 1️⃣ 자막 요청 시도
+    # 사용자 선택 언어만 시도
     try:
         print(f"[UPLOAD] Trying YouTubeTranscriptApi for language: {la}")
         srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
-        print("[UPLOAD] Primary language transcript fetched successfully!")
+        print("[UPLOAD] Transcript fetched successfully!")
     except Exception as e:
-        print(f"[UPLOAD] Primary language fetch error: {e}")
-        try:
-            print("[UPLOAD] Trying fallback language: ko")
-            srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
-            print("[UPLOAD] Korean fallback transcript fetched successfully!")
-        except Exception as e2:
-            print(f"[UPLOAD] Fallback Korean fetch error: {e2}")
-            raise RuntimeError(f"[UPLOAD] Failed to fetch transcript for video_id: {video_id}. Both primary and fallback languages failed.")
+        print(f"[UPLOAD] Transcript fetch error for {la}: {e}")
+        raise RuntimeError(f"[UPLOAD] Failed to fetch transcript for {video_id} in {la}.")
 
-    # 2️⃣ 번역 (한국어가 아닐 때만)
     if la != 'ko':
         print("[UPLOAD] Translating transcript to Korean...")
         jsonTrans(srt_json)
         print("[UPLOAD] Translation done!")
 
-    # 3️⃣ SRT 생성
     print("[UPLOAD] Creating SRT file...")
     srt = json2srt(srt_json)
     with open(srtName, 'w', encoding='utf-8') as f:
         f.write(srt)
     print(f"[UPLOAD] SRT file {srtName} created.")
 
-    # 4️⃣ FFMPEG 병합
     print("[UPLOAD] Starting FFMPEG merge...")
     mergeSource(vName, srtName, outName)
     print("[UPLOAD] FFMPEG merge done.")
 
-    # 5️⃣ SRT/원본 영상 삭제
     os.remove(srtName)
     os.remove(vName)
-    print("[UPLOAD] Temporary files deleted (video & SRT).")
+    print("[UPLOAD] Temporary files deleted.")
 
-    # 6️⃣ SFTP 업로드
     print("[UPLOAD] Starting SFTP upload...")
     cnopts = pysftp.CnOpts()
     cnopts.hostkeys = None
@@ -254,8 +243,6 @@ def routine_for_upload(vName: str, video_id: str, la: str):
         print(f"[UPLOAD] Uploaded {outName} as {video_id}.mp4 to SFTP.")
 
     os.remove(outName)
-    print("[UPLOAD] Final merged video removed from local storage.")
-
     print("[UPLOAD] All done successfully!")
     return True
 
