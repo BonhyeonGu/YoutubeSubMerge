@@ -5,6 +5,7 @@ from flask import Flask, render_template_string, redirect, render_template, requ
 from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound
 import deepl
 import pysftp
+import subprocess
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024 * 1024
@@ -51,7 +52,7 @@ def routine(video_url: str, video_id: str, la: str):
     outName = sanitize_filename(outName)
 
     print(f"Downloading video from {video_url}")
-    os.system(f"wget -O {vName} {video_url}")
+    subprocess.run(["wget", "-O", vName, video_url], check=True)
     print("Download End")
     
     try:
