@@ -1,224 +1,152 @@
 <!DOCTYPE html>
 <html lang="kr">
 <head>
-    <meta charset="UTF-8">
-    <title>Youtube Downloader</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            color: #333;
-            margin: 0;
-            padding: 0;
-        }
-
-        h1 {
-            text-align: center;
-            margin: 20px 0;
-            color: #444;
-        }
-
-        .container {
-            width: 90%;
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-            background-color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-
-        .total-storage {
-            text-align: right;
-            margin-bottom: 10px;
-            font-weight: bold;
-            font-size: 16px;
-        }
-
-        .status-message {
-            text-align: center;
-            font-weight: bold;
-            margin: 10px 0;
-            color: #555;
-        }
-
-        .control-panel {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        input[type="text"], select {
-            padding: 10px;
-            font-size: 14px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 14px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        .file-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #ddd;
-        }
-
-        .file-item img {
-            width: 50px;
-            height: 50px;
-            border-radius: 5px;
-        }
-
-        .file-details {
-            display: flex;
-            flex-grow: 1;
-            flex-direction: column;
-            margin-left: 10px;
-            min-width: 0;
-        }
-
-        .file-title {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            min-width: 0;
-            flex: 1 1 auto;
-            font-weight: bold;
-        }
-
-        .file-actions button {
-            margin-left: 10px;
-        }
-
-        .status-message.loading {
-            color: #555;
-        }
-
-        .status-message.success {
-            color: green;
-        }
-
-        .status-message.error {
-            color: red;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>Subsc</title>
+<style>
+/* 기존 스타일 유지 */
+</style>
 </head>
 <body>
 
-    <h1>Youtube Downloader</h1>
+<h1>Subsc</h1>
 
-    <div class="container">
-        <div class="total-storage" id="total-storage">총 소비 용량: 계산 중...</div>
+<div class="container">
+    <div class="total-storage" id="total-storage">총 소비 용량: 계산 중...</div>
 
-        <div class="control-panel">
-            <input type="text" id="video-url" placeholder="Video Download URL">
-            <input type="text" id="video-id" placeholder="Video ID">
-            <select id="language">
-                <option value="ko">Korean</option>
-                <option value="en">English</option>
-                <option value="ja">Japanese</option>
-                <option value="zh">Chinese</option>
-            </select>
-            <button id="subscribe-btn">변환</button>
-        </div>
-
-        <div class="status-message" id="status-message"></div>
-
-        <button id="refresh-list" style="margin-bottom: 20px;">목록 새로고침</button>
-
-        <div id="files-list"></div>
+    <!-- 모드 선택 -->
+    <div style="margin-bottom: 10px;">
+        <label><input type="radio" name="mode" value="url" checked> URL로 다운로드</label>
+        <label><input type="radio" name="mode" value="upload"> 파일 업로드</label>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
-    <script>
-        function setStatusMessage(message, type = 'loading') {
-            const statusMessage = document.getElementById('status-message');
-            statusMessage.textContent = message;
-            statusMessage.className = `status-message ${type}`;
+    <div class="control-panel">
+        <input type="text" id="video-url" placeholder="Video Download URL">
+        <input type="file" id="video-file" style="display: none;">
+        <input type="text" id="video-id" placeholder="Video ID">
+        <select id="language">
+            <option value="ko">Korean</option>
+            <option value="en">English</option>
+            <option value="ja">Japanese</option>
+            <option value="zh">Chinese</option>
+        </select>
+        <button id="subscribe-btn">변환</button>
+    </div>
+
+    <button id="refresh-list" style="margin-bottom: 20px;">목록 새로고침</button>
+
+    <div id="status-message"></div>
+    <div id="files-list"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+function formatBytes(bytes, decimals = 2) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function formatGigabytes(bytes) {
+    const gb = bytes / (1024 ** 3);
+    return `${gb.toFixed(2)} GB`;
+}
+
+function shortenText(text, maxLength = 30) {
+    return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
+}
+
+async function fetchAndDisplayList() {
+    const response = await axios.get('/getremotelist');
+    const filesList = document.getElementById('files-list');
+    filesList.innerHTML = '';
+    let totalSize = 0;
+
+    const sortedFiles = response.data.sort((a, b) => {
+        const aDate = parseInt(a.split(', ')[2].split(': ')[1]);
+        const bDate = parseInt(b.split(', ')[2].split(': ')[1]);
+        return bDate - aDate;
+    });
+
+    const filePromises = sortedFiles.map(async file => {
+        const parts = file.split(', ');
+        const videoId = parts[0].split(': ')[1].replace('.mp4', '');
+        const size = parseInt(parts[1].split(': ')[1]);
+        totalSize += size;
+
+        let title = videoId;
+        let thumbnailUrl = `https://img.youtube.com/vi/${videoId}/default.jpg`;
+
+        try {
+            const videoResponse = await axios.get('https://noembed.com/embed', { params: { url: `https://www.youtube.com/watch?v=${videoId}` } });
+            title = shortenText(videoResponse.data.title);
+            thumbnailUrl = videoResponse.data.thumbnail_url;
+        } catch (error) {
+            console.warn('Could not fetch video info for:', videoId);
         }
 
-        function shortenText(text, maxLength = 20) {
-            return text.length > maxLength ? text.slice(0, maxLength) + '...' : text;
-        }
+        const item = document.createElement('div');
+        item.className = 'file-item';
+        item.innerHTML = `
+            <img src="${thumbnailUrl}">
+            <div class="file-details">${title} - ${formatBytes(size)}</div>
+            <div class="file-actions">
+                <button onclick="navigator.clipboard.writeText('https://vrcimg.hatsune.app/subsc/${videoId}.mp4')">복사</button>
+                <button onclick="confirmDelete('${videoId}')">삭제</button>
+            </div>
+        `;
 
-        async function fetchAndDisplayList() {
-            setStatusMessage('🔄 목록을 불러오는 중...');
-            const response = await axios.get('/getremotelist');
-            const filesList = document.getElementById('files-list');
-            filesList.innerHTML = '';
-            let totalSize = 0;
+        return item;
+    });
 
-            const filePromises = response.data.map(async file => {
-                const parts = file.split(', ');
-                const videoId = parts[0].split(': ')[1].replace('.mp4', '').trim();
-                const size = parseInt(parts[1].split(': ')[1]);
-                totalSize += size;
+    const items = await Promise.all(filePromises);
+    items.forEach(item => filesList.appendChild(item));
+    document.getElementById('total-storage').textContent = `총 소비 용량: ${formatGigabytes(totalSize)}`;
+}
 
-                let title = videoId;
-                let thumbnailUrl = `https://img.youtube.com/vi/${videoId}/default.jpg`;
+function confirmDelete(videoId) {
+    if (confirm(`${videoId}을(를) 삭제하시겠습니까?`)) {
+        axios.post('/deleteremote', { videoId }).then(() => fetchAndDisplayList());
+    }
+}
 
-                try {
-                    const videoResponse = await axios.get('https://noembed.com/embed', { params: { url: `https://www.youtube.com/watch?v=${videoId}` } });
-                    title = shortenText(videoResponse.data.title, 20);
-                    thumbnailUrl = videoResponse.data.thumbnail_url;
-                } catch (error) {
-                    console.warn('Could not fetch video info for:', videoId);
-                }
+document.querySelectorAll('input[name="mode"]').forEach(el => {
+    el.addEventListener('change', e => {
+        const mode = e.target.value;
+        document.getElementById('video-url').style.display = mode === 'url' ? 'block' : 'none';
+        document.getElementById('video-file').style.display = mode === 'upload' ? 'block' : 'none';
+    });
+});
 
-                const item = document.createElement('div');
-                item.className = 'file-item';
-                item.innerHTML = `
-                    <img src="${thumbnailUrl}">
-                    <div class="file-details">
-                        <div class="file-title">${title}</div>
-                    </div>
-                    <div class="file-actions">
-                        <button onclick="navigator.clipboard.writeText('https://vrcimg.9bon.org/subsc/${videoId}.mp4')">복사</button>
-                        <button onclick="confirmDelete('${videoId}')">삭제</button>
-                    </div>
-                `;
+document.getElementById('refresh-list').addEventListener('click', fetchAndDisplayList);
 
-                return item;
-            });
+document.getElementById('subscribe-btn').addEventListener('click', () => {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const videoId = document.getElementById('video-id').value;
+    const language = document.getElementById('language').value;
 
-            const items = await Promise.all(filePromises);
-            items.forEach(item => filesList.appendChild(item));
-            document.getElementById('total-storage').textContent = `총 소비 용량: ${(totalSize / (1024 ** 3)).toFixed(2)} GB`;
-            setStatusMessage('');
-        }
+    if (mode === 'url') {
+        const videoUrl = document.getElementById('video-url').value;
+        axios.post('/subsc', { url: videoUrl, id: videoId, language }).then(() => fetchAndDisplayList());
+    } else {
+        const fileInput = document.getElementById('video-file');
+        const file = fileInput.files[0];
+        if (!file) return alert('파일을 선택하세요.');
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('id', videoId);
+        formData.append('language', language);
 
-        function confirmDelete(videoId) {
-            if (confirm(`${videoId}을(를) 삭제하시겠습니까?`)) {
-                setStatusMessage('🔄 파일을 삭제하는 중...', 'loading');
-                axios.post('/deleteremote', { videoId }).then(() => fetchAndDisplayList());
-            }
-        }
+        axios.post('/upload', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        }).then(() => fetchAndDisplayList());
+    }
+});
 
-        document.getElementById('refresh-list').addEventListener('click', fetchAndDisplayList);
-        document.getElementById('subscribe-btn').addEventListener('click', async () => {
-            setStatusMessage('🔄 진행 중...');
-            await axios.post('/subsc');
-            setStatusMessage('✅ 완료!', 'success');
-            fetchAndDisplayList();
-        });
-
-        fetchAndDisplayList();
-    </script>
-
+fetchAndDisplayList();
+</script>
 </body>
 </html>

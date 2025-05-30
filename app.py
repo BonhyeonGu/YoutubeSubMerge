@@ -171,6 +171,69 @@ def delete_file():
     else:
         return jsonify({"error": "변수 전달 받지 못함"}), 400
 
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    file = request.files['file']
+    video_id = request.form['id']
+    language = request.form['language']
+
+    if file and video_id:
+        filename = f"{video_id}.mp4"
+        file.save(filename)
+        print(f"File {filename} uploaded.")
+
+        # 이후 처리: 번역 및 sftp 업로드 (routine 함수의 변형)
+        success = routine_for_upload(filename, video_id, language)
+
+        if success:
+            return jsonify({"success": True, "message": "파일 업로드 및 처리 완료"}), 200
+        else:
+            return jsonify({"success": False, "message": "처리 중 오류 발생"}), 500
+
+    return jsonify({"error": "파일 또는 ID가 누락됨"}), 400
+
+def routine_for_upload(vName: str, video_id: str, la: str):
+    srtName = f'{video_id}.srt'
+    outName = f'{video_id}_final.mp4'
+
+    print(f"Processing uploaded video: {vName}")
+
+    try:
+        srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=[la])
+    except:
+        try:
+            srt_json = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko'])
+        except:
+            return False
+
+    if la != 'ko':
+        jsonTrans(srt_json)
+
+    srt = json2srt(srt_json)
+    with open(srtName, 'w', encoding='utf-8') as f:
+        f.write(srt)
+
+    mergeSource(vName, srtName, outName)
+
+    os.remove(vName)
+    os.remove(srtName)
+
+    # SFTP 업로드
+    cnopts = pysftp.CnOpts()
+    cnopts.hostkeys = None
+    host = inpJson["sftp"]["host"]
+    port = inpJson["sftp"]["port"]
+    id = inpJson["sftp"]["id"]
+    pw = inpJson["sftp"]["pw"]
+    sftpOutLocale = inpJson["sftp"]["locale"]
+
+    with pysftp.Connection(host, port=port, username=id, password=pw, cnopts=cnopts) as sftp:
+        sftp.put(outName, os.path.join(sftpOutLocale, f"{video_id}.mp4"))
+        print(f"Uploaded {outName} as {video_id}.mp4 to SFTP")
+
+    os.remove(outName)
+    return True
+
 @app.route('/')
 def home():
     return render_template('index.html')
